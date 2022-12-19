@@ -2,8 +2,7 @@ name: flutter_webrtc_remote_desktop
 description: A Flutter WebRTC Remote Desktop package.
 version: 0.0.1
 homepage: https://github.com/epitchi/flutter_webrtc_remote_desktop
-authors: 
-  - epitchi.dev@gmail.com
+
 
 environment:
   sdk: '>=2.18.0 <3.0.0'
