@@ -16,9 +16,6 @@ typedef DeviceSelectionType = Future<Device.DeviceSelectionResult> Function(
     Device.DeviceSelection input);
 
 class WebRTCClient {
-  // final SIGNALLING_URL = DotEnv().get('NEXT_PUBLIC_SIGNALING_URL').isNotEmpty
-  //     ? dotenv.get('NEXT_PUBLIC_SIGNALING_URL')
-  //     : 'wss://remote.thinkmay.net/handshake';
 
   late dynamic audio;
   late dynamic video;
