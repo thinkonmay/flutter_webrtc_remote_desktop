@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_webrtc_remote_desktop/model/devices.model.dart';
+import 'package:flutter_webrtc_remote_desktop/src/model/devices.model.dart';
 
 enum TypeDeviceSelection { soundcard, monitor, bitrate, framerate }
 

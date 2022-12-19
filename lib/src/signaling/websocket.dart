@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter_webrtc_remote_desktop/model/signaling.model.dart';
-import 'package:flutter_webrtc_remote_desktop/utils/log.dart';
+import 'package:flutter_webrtc_remote_desktop/src/model/signaling.model.dart';
+import 'package:flutter_webrtc_remote_desktop/src/utils/log.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 typedef PacketHandlerType = void Function({Map<String, String> Data});

@@ -1,5 +1,5 @@
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:flutter_webrtc_remote_desktop/qos/qos.dart';
+import 'package:flutter_webrtc_remote_desktop/src/qos/qos.dart';
 
 import 'utils/log.dart';
 
