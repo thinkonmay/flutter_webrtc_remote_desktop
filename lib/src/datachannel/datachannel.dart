@@ -1,33 +1,25 @@
-class DataChannel
-{
-//     HID: RTCDataChannel | null;
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-//     constructor(chan: RTCDataChannel,
-//                 handler: ((data: string) => (void))) {
-//         this.HID = chan;
-//         this.HID.onmessage = ((ev: MessageEvent) => {
-//             if (ev.data === "ping") {
-//                 this.HID?.send("ping");
-//                 return;
-//             }
-//             handler(ev.data);
-//         })
+class DataChannel {
+  late RTCDataChannel HID;
 
-//         this.HID.onerror = (() => {
+  DataChannel(RTCDataChannel chan, void Function(String? data) handler) {
+    this.HID = chan;
 
-//         })
+    this.HID.onMessage = (ev) {
+      if (ev.text == "ping") {
+        this.HID.send(RTCDataChannelMessage("ping"));
+        return;
+      }
+      handler(ev.text);
+    };
 
-//         this.HID.onclose = (() => {
+    sendMessage(String message) {
+      if (this.HID == null) {
+        return;
+      }
 
-//         })
-//     }
-
-//     public sendMessage (message : string) {
-//         if (this.HID == null) {
-//             return;
-//         }
-
-//         this.HID.send(message);
-//     }
+      this.HID.send(RTCDataChannelMessage(message));
+    }
+  }
 }
-

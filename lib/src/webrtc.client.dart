@@ -3,12 +3,14 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as LibWebRTC;
-import 'package:flutter_webrtc_remote_desktop/src/model/devices.model.dart' as Device;
+import 'package:flutter_webrtc_remote_desktop/src/model/devices.model.dart'
+    as Device;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as LibWebRTC;
 import 'package:flutter_webrtc_remote_desktop/src/signaling/websocket.dart';
 import 'package:flutter_webrtc_remote_desktop/src/webrtc.dart';
 
 import 'datachannel/datachannel.dart';
+import 'gui/hid.dart';
 import 'utils/log.dart';
 
 typedef AlertType = void Function(String input);
@@ -16,18 +18,19 @@ typedef DeviceSelectionType = Future<Device.DeviceSelectionResult> Function(
     Device.DeviceSelection input);
 
 class WebRTCClient {
-
   late dynamic audio;
   late dynamic video;
   late WebRTC webrtc;
   // final HID hid;
   late SignallingClient signaling;
-  // final Map<String, DataChannel> datachannels;
+  late Map<String, DataChannel> datachannels;
 
   late DeviceSelectionType DeviceSelection;
   late AlertType alert;
 
   late bool started;
+
+  late HID hid;
 
   WebRTCClient(
     String signallingURL,
@@ -43,15 +46,16 @@ class WebRTCClient {
     this.audio = audio;
     this.video = vid;
     this.DeviceSelection = deviceSelection;
-    // this.datachannels = new Map<string,DataChannel>();
-    // this.hid = new HID(this.video,((data: string) => {
-    //     let channel = this.datachannels.get("hid")
-    //     if (channel == null) {
-    //         Log(LogLevel.Warning,"attempting to send message while data channel is not established");
-    //         return;
-    //     }
-    //     channel.sendMessage(data);
-    // }));
+    this.datachannels = new Map<String, DataChannel>();
+
+    this.hid = HID(({data}) {
+      var channel = this.datachannels["hid"];
+      if (channel == null) {
+        return;
+      }
+      if (data != null) channel.HID.send(LibWebRTC.RTCDataChannelMessage(data));
+    });
+
     signaling = SignallingClient(signallingURL, token,
         ({Map<String, String>? Data}) => handleIncomingPacket(Data!));
 
@@ -93,9 +97,12 @@ class WebRTCClient {
       return;
     }
 
-    // this.datachannels.set(a.label, new DataChannel(a,(data) => {
-    //     Log(LogLevel.Debug, "message from data channel ${a.label}: ${d ata}");
-    // }));
+    this.datachannels[a.label!] = DataChannel(
+        a,
+        (data) => {
+              Log(LogLevel.Debug,
+                  "message from data channel ${a.label}: ${data}")
+            });
   }
 
   handleIncomingPacket(Map<String, String> pkt) async {
@@ -170,25 +177,26 @@ class WebRTCClient {
 
   ChangeFramerate(int framerate) {
     const dcName = "manual";
-    var channel = this.datachannels.get(dcName);
+    var channel = this.datachannels[dcName];
     if (channel == null) {
       Log(LogLevel.Warning,
-          'attempting to send message while data channel $dcName is ready');
+          'asendMessagettempting to send message while data channel $dcName is ready');
       return;
     }
-    channel
-        .sendMessage(jsonEncode({"type": "framerate", "framerate": framerate}));
+    channel.HID.send(LibWebRTC.RTCDataChannelMessage(
+        jsonEncode({"type": "framerate", "framerate": framerate})));
   }
 
   ChangeBitrate(int bitrate) {
     const dcName = "manual";
-    var channel = this.datachannels.get(dcName);
+    var channel = this.datachannels["dcName"];
     if (channel == null) {
       Log(LogLevel.Warning,
           'attempting to send message while data channel $dcName is ready');
       return;
     }
-    channel.sendMessage(jsonEncode({"type": "bitrate", "bitrate": bitrate}));
+    channel.HID.send(LibWebRTC.RTCDataChannelMessage(
+        jsonEncode({"type": "bitrate", "bitrate": bitrate})));
   }
 
   Function(LibWebRTC.RTCTrackEvent stream)? onRemoteStream;
