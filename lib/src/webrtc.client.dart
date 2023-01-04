@@ -37,7 +37,7 @@ class WebRTCClient {
     DeviceSelectionType deviceSelection,
   ) {
     Log(LogLevel.Infor, "Started oneplay app with token $signallingURL");
-    Log(LogLevel.Infor,"Session token: $token");
+    Log(LogLevel.Infor, "Session token: $token");
     LogConnectionEvent(ConnectionEvent.ApplicationStarted);
     this.started = false;
     this.audio = audio;
@@ -150,8 +150,7 @@ class WebRTCClient {
       var result = await DeviceSelection(i);
       var dat = <String, String>{};
       dat["type"] = "answer";
-      dat["monitor"] = result.MonitorHandle!;
-      dat["soundcard"] = result.SoundcardDeviceID!;
+      dat["value"] = result.toString();
       signaling.SignallingSend("PREFLIGHT", dat);
     } else if (target == "START") {
       var dat = <String, String>{};
@@ -167,6 +166,29 @@ class WebRTCClient {
   WebRTCClient Alert(void Function(String message) notifier) {
     alert = notifier;
     return this;
+  }
+
+  ChangeFramerate(int framerate) {
+    const dcName = "manual";
+    var channel = this.datachannels.get(dcName);
+    if (channel == null) {
+      Log(LogLevel.Warning,
+          'attempting to send message while data channel $dcName is ready');
+      return;
+    }
+    channel
+        .sendMessage(jsonEncode({"type": "framerate", "framerate": framerate}));
+  }
+
+  ChangeBitrate(int bitrate) {
+    const dcName = "manual";
+    var channel = this.datachannels.get(dcName);
+    if (channel == null) {
+      Log(LogLevel.Warning,
+          'attempting to send message while data channel $dcName is ready');
+      return;
+    }
+    channel.sendMessage(jsonEncode({"type": "bitrate", "bitrate": bitrate}));
   }
 
   Function(LibWebRTC.RTCTrackEvent stream)? onRemoteStream;

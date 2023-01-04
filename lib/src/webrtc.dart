@@ -92,7 +92,7 @@ class WebRTC {
       var ans = await Conn.createAnswer();
       await onLocalDescription(ans);
     } catch (error) {
-      // Log(LogLevel.Error,error);
+      Log(LogLevel.Error,error.toString());
     }
     ;
   }
@@ -120,7 +120,7 @@ class WebRTC {
 
   onICECandidates(RTCIceCandidate ev) async {
     if (ev.candidate == null) {
-      print("ICE Candidate was null, done");
+      Log(LogLevel.Infor, "ICE Candidate was null, done");
       return;
     }
 
