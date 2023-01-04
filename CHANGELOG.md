@@ -1,3 +1,3 @@
-## 0.0.3+1
+## 0.1.0
 
-* Modify: Remove unused code
+* Modify: Add datachannel, adjust bitrate, framerate
