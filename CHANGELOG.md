@@ -1,3 +1,3 @@
-## 0.1.1
+## 0.1.1+1
 
-* Modify: Fix issue websockt, video render
+* Modify: + Hot fix websocket init
