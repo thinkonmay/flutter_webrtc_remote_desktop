@@ -20,9 +20,10 @@ class SignallingClient {
   }
 
   setup(url, token) async {
+    WebSocketConnection =
         WebSocketChannel.connect(Uri.parse("$url?token=$token"));
     // onOpen?.call();
-    WebSocketConnection.stream.listen((data) {  
+    WebSocketConnection.stream.listen((data) {
       onServerMessage(data);
     }, onDone: () {
       onClose?.call(
@@ -57,10 +58,5 @@ class SignallingClient {
         msg['id'], msg['error'], Map<String, String>.from(msg['data']));
     Log(LogLevel.Debug, "received signaling message: ${response.toString()}");
     PacketHandler(Data: response.Data);
-  }
-
-  Future<WebSocketChannel> _connectForSelfSignedCert(url) async {
-    final WebSocketChannel channel = WebSocketChannel.connect(Uri.parse(url));
-    return channel;
   }
 }
