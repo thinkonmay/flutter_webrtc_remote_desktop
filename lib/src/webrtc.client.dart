@@ -24,6 +24,7 @@ class WebRTCClient {
   // final HID hid;
   late SignallingClient signaling;
   late Map<String, DataChannel> datachannels;
+  // late Map<String, Pipeline> pipelines;
 
   late DeviceSelectionType DeviceSelection;
   late AlertType alert;
@@ -34,8 +35,8 @@ class WebRTCClient {
 
   WebRTCClient(
     String signallingURL,
-    dynamic audio,
     dynamic vid,
+    dynamic audio,
     String token,
     DeviceSelectionType deviceSelection,
   ) {
@@ -47,6 +48,7 @@ class WebRTCClient {
     this.video = vid;
     this.DeviceSelection = deviceSelection;
     this.datachannels = new Map<String, DataChannel>();
+    // this.pipelines = Map<String, Pipeline>();
 
     this.hid = HID(({data}) {
       var channel = this.datachannels["hid"];
@@ -108,6 +110,7 @@ class WebRTCClient {
   handleIncomingPacket(Map<String, String> pkt) async {
     var target = pkt["Target"];
     if (target == "SDP") {
+      LogConnectionEvent(ConnectionEvent.ExchangingSignalingMessage);
       var sdp = pkt["SDP"];
       if (sdp == null) {
         Log(LogLevel.Error, "missing sdp");
@@ -122,6 +125,7 @@ class WebRTCClient {
       webrtc.onIncomingSDP(LibWebRTC.RTCSessionDescription(
           sdp, (type == "offer") ? "offer" : "answer"));
     } else if (target == "ICE") {
+      LogConnectionEvent(ConnectionEvent.ExchangingSignalingMessage);
       var sdpmid = pkt["SDPMid"];
       if (sdpmid == null) {
         Log(LogLevel.Error, "Missing sdp mid field");
@@ -197,6 +201,20 @@ class WebRTCClient {
     }
     channel.HID.send(LibWebRTC.RTCDataChannelMessage(
         jsonEncode({"type": "bitrate", "bitrate": bitrate})));
+  }
+
+  ResetVideo() {
+    const dcName = "manual";
+    var channel = this.datachannels[dcName];
+    if (channel == null) {
+      Log(LogLevel.Warning,
+          'attempting to send message while data channel ${dcName} is ready');
+      return;
+    }
+    channel.HID.send(LibWebRTC.RTCDataChannelMessage(jsonEncode({
+      "type": "reset",
+      "reset": 0,
+    })));
   }
 
   Function(LibWebRTC.RTCTrackEvent stream)? onRemoteStream;
