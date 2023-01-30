@@ -1,3 +1,3 @@
-## 0.1.0
+## 0.1.1
 
-* Modify: Add datachannel, adjust bitrate, framerate
+* Modify: Fix issue websockt, video render
