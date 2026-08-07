@@ -367,7 +367,16 @@ static __weak id<RTCAudioDeviceModuleDelegate> gAudioDeviceModuleObserver = nil;
         // AEC/NS/AGC) and the audio processing options API on macOS.
         // iOS also requires the AudioEngine ADM because the CoreAudio ADM
         // crashes when NSMicrophoneUsageDescription is absent (#2007, #2009).
+#if TARGET_OS_IPHONE
+        // Thinkmay patch: the AVAudioEngine ADM in WebRTC-SDK 144 renders
+        // silence for recv-only audio (engine runs, buffers pulled, session
+        // active — no output). The pre-1.5.0 platform-default ADM
+        // (AudioDeviceIOS) plays fine, so pin it. Thinkmay ships
+        // NSMicrophoneUsageDescription, so the crash above does not apply.
+        RTCAudioDeviceModuleType audioDeviceModuleType = RTCAudioDeviceModuleTypePlatformDefault;
+#else
         RTCAudioDeviceModuleType audioDeviceModuleType = RTCAudioDeviceModuleTypeAudioEngine;
+#endif
         _peerConnectionFactory =
             [[RTCPeerConnectionFactory alloc] initWithAudioDeviceModuleType:audioDeviceModuleType
                                                       bypassVoiceProcessing:bypassVoiceProcessing
