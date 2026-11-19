@@ -211,7 +211,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
   }
   private void initialize(boolean bypassVoiceProcessing, boolean androidUseHardwareAudioProcessing, int networkIgnoreMask, boolean forceSWCodec, List<String> forceSWCodecList,
   @Nullable ConstraintsMap androidAudioConfiguration, Severity logSeverity, @Nullable Integer audioSampleRate, @Nullable Integer audioOutputSampleRate,
-  @Nullable String fieldTrials) {
+  @Nullable String fieldTrials, boolean lowLatencyDecoder) {
     if (mFactory != null) {
       return;
     }
@@ -356,6 +356,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
 
     videoDecoderFactory.setForceSWCodec(forceSWCodec);
     videoDecoderFactory.setForceSWCodecList(forceSWCodecList);
+    videoDecoderFactory.setLowLatency(lowLatencyDecoder);
     videoEncoderFactory.setForceSWCodec(forceSWCodec);
     videoEncoderFactory.setForceSWCodecList(forceSWCodecList);
 
@@ -468,7 +469,11 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
           fieldTrials = constraintsMap.getString("fieldTrials");
         }
 
-        initialize(enableBypassVoiceProcessing, androidUseHardwareAudioProcessing, networkIgnoreMask, forceSWCodec, forceSWCodecList, androidAudioConfiguration, logSeverity, audioSampleRate, audioOutputSampleRate, fieldTrials);
+        boolean lowLatencyDecoder = constraintsMap.hasKey("androidLowLatencyDecoder")
+                && constraintsMap.getType("androidLowLatencyDecoder") == ObjectType.Boolean
+                && constraintsMap.getBoolean("androidLowLatencyDecoder");
+
+        initialize(enableBypassVoiceProcessing, androidUseHardwareAudioProcessing, networkIgnoreMask, forceSWCodec, forceSWCodecList, androidAudioConfiguration, logSeverity, audioSampleRate, audioOutputSampleRate, fieldTrials, lowLatencyDecoder);
         result.success(null);
         break;
       }

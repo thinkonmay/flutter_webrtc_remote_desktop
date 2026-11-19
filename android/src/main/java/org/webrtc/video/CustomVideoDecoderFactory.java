@@ -3,6 +3,9 @@ package org.webrtc.video;
 import androidx.annotation.Nullable;
 
 import org.webrtc.EglBase;
+import org.webrtc.LowLatencyVideoDecoderFactory;
+import org.webrtc.PlatformSoftwareVideoDecoderFactory;
+import org.webrtc.VideoDecoderFallback;
 import org.webrtc.SoftwareVideoDecoderFactory;
 import org.webrtc.VideoCodecInfo;
 import org.webrtc.VideoDecoder;
@@ -17,12 +20,22 @@ import java.util.Map;
 public class CustomVideoDecoderFactory implements VideoDecoderFactory {
     private SoftwareVideoDecoderFactory softwareVideoDecoderFactory = new SoftwareVideoDecoderFactory();
     private WrappedVideoDecoderFactory wrappedVideoDecoderFactory;
+    private final LowLatencyVideoDecoderFactory lowLatencyHardware;
+    private final PlatformSoftwareVideoDecoderFactory platformSoftware;
+    private boolean lowLatency = false;
     private boolean forceSWCodec  = false;
 
     private List<String> forceSWCodecs = new ArrayList<>();
 
     public  CustomVideoDecoderFactory(EglBase.Context sharedContext) {
         this.wrappedVideoDecoderFactory = new WrappedVideoDecoderFactory(sharedContext);
+        this.lowLatencyHardware = new LowLatencyVideoDecoderFactory(sharedContext);
+        this.platformSoftware = new PlatformSoftwareVideoDecoderFactory(sharedContext);
+    }
+
+    /** Hardware decoders asked for low-latency output, falling back to software as before. */
+    public void setLowLatency(boolean lowLatency) {
+        this.lowLatency = lowLatency;
     }
 
     public void setForceSWCodec(boolean forceSWCodec) {
@@ -43,6 +56,17 @@ public class CustomVideoDecoderFactory implements VideoDecoderFactory {
             if(forceSWCodecs.contains(videoCodecInfo.name)) {
                 return softwareVideoDecoderFactory.createDecoder(videoCodecInfo);
             }
+        }
+        if (lowLatency) {
+            VideoDecoder software = softwareVideoDecoderFactory.createDecoder(videoCodecInfo);
+            if (software == null) {
+                software = platformSoftware.createDecoder(videoCodecInfo);
+            }
+            VideoDecoder hardware = lowLatencyHardware.createDecoder(videoCodecInfo);
+            if (hardware != null && software != null) {
+                return new VideoDecoderFallback(software, hardware);
+            }
+            return hardware != null ? hardware : software;
         }
         return wrappedVideoDecoderFactory.createDecoder(videoCodecInfo);
     }

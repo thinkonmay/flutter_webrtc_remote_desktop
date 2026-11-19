@@ -66,6 +66,10 @@ class WebRTC {
   /// "audioSampleRate": (Android only) Sets both input and output sample rate in Hz (e.g., 48000).
   ///                    If not specified, uses the native device's default sample rate.
   ///
+  /// "androidLowLatencyDecoder": (Android only) asks hardware decoders for low-latency output,
+  ///                prefers a low-latency decoder instance, and keeps texture output on
+  ///                OMX.qcom and OMX.hisi decoders. Defaults to false.
+  ///
   /// "fieldTrials": libwebrtc field trials as `Name/Value/` pairs, applied before the
   ///                factory is built. A string that is not in that form is dropped.
   ///
