@@ -342,6 +342,23 @@ static __weak id<RTCAudioDeviceModuleDelegate> gAudioDeviceModuleObserver = nil;
   return RTCLoggingSeverityNone;
 }
 
+// Re-initialises the trials from "Name/Value/" pairs, keeping the NWPathMonitor trial
+// set at registration. Trials are read when the factory is built, so this runs first.
+- (void)applyFieldTrials:(NSString*)fieldTrials {
+  NSMutableDictionary* trials =
+      [@{kRTCFieldTrialUseNWPathMonitor : kRTCFieldTrialEnabledValue} mutableCopy];
+  NSArray<NSString*>* parts = [fieldTrials componentsSeparatedByString:@"/"];
+  for (NSUInteger i = 0; i + 1 < parts.count; i += 2) {
+    if (parts[i].length > 0 && parts[i + 1].length > 0) {
+      trials[parts[i]] = parts[i + 1];
+    }
+  }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  RTCInitFieldTrialDictionary(trials);
+#pragma clang diagnostic pop
+}
+
 - (void)initialize:(NSArray*)networkIgnoreMask
     bypassVoiceProcessing:(BOOL)bypassVoiceProcessing
                  severity:(RTCLoggingSeverity)severity {
@@ -454,6 +471,9 @@ static __weak id<RTCAudioDeviceModuleDelegate> gAudioDeviceModuleObserver = nil;
       severity = [self str2LogSeverity:severityStr];
     }
 
+    if (!_peerConnectionFactory && [options[@"fieldTrials"] isKindOfClass:[NSString class]]) {
+      [self applyFieldTrials:(NSString*)options[@"fieldTrials"]];
+    }
     [self initialize:networkIgnoreMask bypassVoiceProcessing:enableBypassVoiceProcessing
                      severity:severity];
     result(@"");

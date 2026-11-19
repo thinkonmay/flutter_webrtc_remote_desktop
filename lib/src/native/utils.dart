@@ -38,6 +38,10 @@ class WebRTC {
 
   static bool initialized = false;
 
+  /// libwebrtc's field-trial format: one or more `Name/Value/` pairs.
+  static final _fieldTrialsPattern =
+      RegExp(r'^([A-Za-z0-9][A-Za-z0-9_.-]*/[^/]+/)+$');
+
   /// Initialize the WebRTC plugin. If this is not manually called, will be
   /// initialized with default settings.
   ///
@@ -62,13 +66,23 @@ class WebRTC {
   /// "audioSampleRate": (Android only) Sets both input and output sample rate in Hz (e.g., 48000).
   ///                    If not specified, uses the native device's default sample rate.
   ///
+  /// "fieldTrials": libwebrtc field trials as `Name/Value/` pairs, applied before the
+  ///                factory is built. A string that is not in that form is dropped.
+  ///
   /// "audioOutputSampleRate": (Android only) Sets only output sample rate in Hz (e.g., 48000).
   ///                          Takes precedence over audioSampleRate for output.
   ///                          If not specified, uses audioSampleRate or native default.
   static Future<void> initialize({Map<String, dynamic>? options}) async {
     if (!initialized) {
+      final sent = Map<String, dynamic>.of(options ?? {});
+      final trials = sent['fieldTrials'];
+      if (trials != null &&
+          (trials is! String || !_fieldTrialsPattern.hasMatch(trials))) {
+        // A bad trial string must not stop WebRTC from starting.
+        sent.remove('fieldTrials');
+      }
       await _channel.invokeMethod<void>('initialize', <String, dynamic>{
-        'options': options ?? {},
+        'options': sent,
       });
       initialized = true;
     }

@@ -27,6 +27,8 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
 import io.flutter.embedding.engine.plugins.lifecycle.HiddenLifecycleReference;
+import io.flutter.plugin.common.BasicMessageChannel;
+import io.flutter.plugin.common.BinaryCodec;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodChannel;
@@ -41,6 +43,7 @@ public class FlutterWebRTCPlugin implements FlutterPlugin, ActivityAware, EventC
     private static Application application;
 
     private MethodChannel methodChannel;
+    private BasicMessageChannel<java.nio.ByteBuffer> dataChannelSendChannel;
     private MethodCallHandlerImpl methodCallHandler;
     private LifeCycleObserver observer;
     private Lifecycle lifecycle;
@@ -135,6 +138,21 @@ public class FlutterWebRTCPlugin implements FlutterPlugin, ActivityAware, EventC
         methodChannel.setMethodCallHandler(methodCallHandler);
         eventChannel = new EventChannel( messenger,"FlutterWebRTC.Event");
         eventChannel.setStreamHandler(this);
+        // Sends here run on a background queue, so input never waits for the UI thread;
+        // the queue is serial, which keeps sends in order.
+        dataChannelSendChannel = new BasicMessageChannel<>(messenger, "FlutterWebRTC/dataChannelSend",
+                BinaryCodec.INSTANCE, messenger.makeBackgroundTaskQueue());
+        dataChannelSendChannel.setMessageHandler((message, reply) -> {
+            DataChannelSendFrame frame = DataChannelSendFrame.parse(message);
+            boolean sent = false;
+            try {
+                sent = frame != null && PeerConnectionObserver.sendFromAnyThread(frame);
+            } catch (RuntimeException e) {
+                Log.w(TAG, "dataChannelSend lane: " + e.getMessage());
+            }
+            if (!sent) Log.d(TAG, "dataChannelSend lane: not sent");
+            reply.reply(null);
+        });
         AudioSwitchManager.instance.audioDeviceChangeListener = (devices, currentDevice) -> {
             Log.w(TAG, "audioFocusChangeListener " + devices+ " " + currentDevice);
             ConstraintsMap params = new ConstraintsMap();
@@ -149,6 +167,10 @@ public class FlutterWebRTCPlugin implements FlutterPlugin, ActivityAware, EventC
         methodCallHandler = null;
         methodChannel.setMethodCallHandler(null);
         eventChannel.setStreamHandler(null);
+        if (dataChannelSendChannel != null) {
+            dataChannelSendChannel.setMessageHandler(null);
+            dataChannelSendChannel = null;
+        }
         if (AudioSwitchManager.instance != null) {
             Log.d(TAG, "Stopping the audio manager...");
             AudioSwitchManager.instance.stop();

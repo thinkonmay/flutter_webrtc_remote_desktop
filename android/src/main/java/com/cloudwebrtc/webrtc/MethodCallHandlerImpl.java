@@ -210,16 +210,19 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
     mPeerConnectionObservers.clear();
   }
   private void initialize(boolean bypassVoiceProcessing, boolean androidUseHardwareAudioProcessing, int networkIgnoreMask, boolean forceSWCodec, List<String> forceSWCodecList,
-  @Nullable ConstraintsMap androidAudioConfiguration, Severity logSeverity, @Nullable Integer audioSampleRate, @Nullable Integer audioOutputSampleRate) {
+  @Nullable ConstraintsMap androidAudioConfiguration, Severity logSeverity, @Nullable Integer audioSampleRate, @Nullable Integer audioOutputSampleRate,
+  @Nullable String fieldTrials) {
     if (mFactory != null) {
       return;
     }
 
-    PeerConnectionFactory.initialize(
-            InitializationOptions.builder(context)
-                    .setEnableInternalTracer(true)
-                    .setInjectableLogger(logSink, logSeverity)
-                    .createInitializationOptions());
+    InitializationOptions.Builder initOptions = InitializationOptions.builder(context)
+            .setEnableInternalTracer(true)
+            .setInjectableLogger(logSink, logSeverity);
+    if (fieldTrials != null && !fieldTrials.isEmpty()) {
+      initOptions.setFieldTrials(fieldTrials);
+    }
+    PeerConnectionFactory.initialize(initOptions.createInitializationOptions());
 
     getUserMediaImpl = new GetUserMediaImpl(this, context);
 
@@ -459,7 +462,13 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
           audioOutputSampleRate = constraintsMap.getInt("audioOutputSampleRate");
         }
 
-        initialize(enableBypassVoiceProcessing, androidUseHardwareAudioProcessing, networkIgnoreMask, forceSWCodec, forceSWCodecList, androidAudioConfiguration, logSeverity, audioSampleRate, audioOutputSampleRate);
+        String fieldTrials = null;
+        if (constraintsMap.hasKey("fieldTrials")
+                && constraintsMap.getType("fieldTrials") == ObjectType.String) {
+          fieldTrials = constraintsMap.getString("fieldTrials");
+        }
+
+        initialize(enableBypassVoiceProcessing, androidUseHardwareAudioProcessing, networkIgnoreMask, forceSWCodec, forceSWCodecList, androidAudioConfiguration, logSeverity, audioSampleRate, audioOutputSampleRate, fieldTrials);
         result.success(null);
         break;
       }

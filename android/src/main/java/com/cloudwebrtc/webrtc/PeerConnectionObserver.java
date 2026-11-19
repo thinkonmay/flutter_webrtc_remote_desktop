@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -49,6 +50,9 @@ import org.webrtc.VideoTrack;
 class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.StreamHandler {
   private final static String TAG = FlutterWebRTCPlugin.TAG;
   private final Map<String, DataChannel> dataChannels = new HashMap<>();
+  // Read by the background send lane, so it must not be the main-thread map above.
+  private static final ConcurrentHashMap<String, DataChannel> sendableChannels =
+      new ConcurrentHashMap<>();
   private final BinaryMessenger messenger;
   private final String id;
   private PeerConnection peerConnection;
@@ -103,6 +107,9 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
     peerConnection.close();
     remoteStreams.clear();
     remoteTracks.clear();
+    for (String flutterId : dataChannels.keySet()) {
+      sendableChannels.remove(sendKey(id, flutterId));
+    }
     dataChannels.clear();
   }
 
@@ -139,6 +146,7 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
     String flutterId = getNextDataChannelUUID();
     if (dataChannel != null) {
       dataChannels.put(flutterId, dataChannel);
+      sendableChannels.put(sendKey(id, flutterId), dataChannel);
       registerDataChannelObserver(flutterId, dataChannel);
 
       ConstraintsMap params = new ConstraintsMap();
@@ -154,10 +162,26 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
   void dataChannelClose(String dataChannelId) {
     DataChannel dataChannel = dataChannels.get(dataChannelId);
     if (dataChannel != null) {
+      sendableChannels.remove(sendKey(id, dataChannelId));
       dataChannel.close();
       dataChannels.remove(dataChannelId);
     } else {
       Log.d(TAG, "dataChannelClose() dataChannel is null");
+    }
+  }
+
+  private static String sendKey(String peerConnectionId, String dataChannelId) {
+    return peerConnectionId + "/" + dataChannelId;
+  }
+
+  /** Sends a binary message from any thread; false when the channel is unknown or closed. */
+  static boolean sendFromAnyThread(DataChannelSendFrame frame) {
+    DataChannel dataChannel = sendableChannels.get(sendKey(frame.peerConnectionId, frame.dataChannelId));
+    if (dataChannel == null) return false;
+    try {
+      return dataChannel.send(new DataChannel.Buffer(frame.payload, true));
+    } catch (IllegalStateException e) {
+      return false;
     }
   }
 
@@ -567,6 +591,7 @@ class PeerConnectionObserver implements PeerConnection.Observer, EventChannel.St
     params.putString("flutterId", flutterId);
 
     dataChannels.put(flutterId, dataChannel);
+    sendableChannels.put(sendKey(id, flutterId), dataChannel);
     registerDataChannelObserver(flutterId, dataChannel);
 
     sendEvent(params);

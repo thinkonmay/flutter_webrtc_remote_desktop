@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/services.dart';
 
@@ -128,6 +130,34 @@ class RTCDataChannelNative extends RTCDataChannel {
       'type': message.isBinary ? 'binary' : 'text',
       'data': message.isBinary ? message.binary : message.text,
     });
+  }
+
+  /// Whether binary sends may use the background lane. Android only: it is the
+  /// platform whose plugin registers the lane.
+  static bool useSendLane = Platform.isAndroid;
+
+  static const BasicMessageChannel<ByteData?> _sendLane =
+      BasicMessageChannel<ByteData?>(
+          'FlutterWebRTC/dataChannelSend', BinaryCodec());
+
+  /// Sends [bytes] without waiting for the native side. On Android it goes on a
+  /// background queue, so a busy UI thread does not hold it back; elsewhere it
+  /// falls back to [send].
+  void sendBinaryNoWait(Uint8List bytes) {
+    if (!useSendLane) {
+      unawaited(send(RTCDataChannelMessage.fromBinary(bytes)));
+      return;
+    }
+    final pc = utf8.encode(_peerConnectionId);
+    final dc = utf8.encode(_flutterId);
+    final frame = Uint8List(4 + pc.length + dc.length + bytes.length);
+    final view = ByteData.sublistView(frame);
+    view.setUint16(0, pc.length);
+    frame.setAll(2, pc);
+    view.setUint16(2 + pc.length, dc.length);
+    frame.setAll(4 + pc.length, dc);
+    frame.setAll(4 + pc.length + dc.length, bytes);
+    unawaited(_sendLane.send(ByteData.sublistView(frame)));
   }
 
   @override
