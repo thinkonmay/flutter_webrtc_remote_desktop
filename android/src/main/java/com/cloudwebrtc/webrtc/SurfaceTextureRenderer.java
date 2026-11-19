@@ -12,7 +12,6 @@ import org.webrtc.VideoFrame;
 
 import java.util.concurrent.CountDownLatch;
 
-import io.flutter.view.TextureRegistry;
 
 /**
  * Display the video stream on a Surface.
@@ -100,21 +99,22 @@ public class SurfaceTextureRenderer extends EglRenderer {
   public void onFrame(VideoFrame frame) {
     synchronized (surfaceLock) {
       if(surface == null) {
-        producer.setSize(frame.getRotatedWidth(),frame.getRotatedHeight());
-        surface = producer.getSurface();
+        target.setSize(frame.getRotatedWidth(),frame.getRotatedHeight());
+        surface = target.getSurface();
         createEglSurface(surface);
       } else if (frameSizeChanged(frame)) {
         // The producer's backing buffers are fixed-size: setSize() only takes
         // effect for a Surface obtained afterwards. Without recreating the EGL
         // surface here, a simulcast layer upgrade keeps rendering into the old
         // low-resolution buffer and the video stays blurry.
-        releaseEglSurface(() -> {});
+        final Surface old = surface;
+        releaseEglSurface(() -> target.surfaceReleased(old));
         // Clear the field before re-obtaining: if getSurface() throws, the
         // next frame takes the surface == null path and recreates cleanly
         // rather than rendering into the already-released surface.
         surface = null;
-        producer.setSize(frame.getRotatedWidth(), frame.getRotatedHeight());
-        surface = producer.getSurface();
+        target.setSize(frame.getRotatedWidth(), frame.getRotatedHeight());
+        surface = target.getSurface();
         createEglSurface(surface);
       }
     }
@@ -140,24 +140,12 @@ public class SurfaceTextureRenderer extends EglRenderer {
   private final Object surfaceLock = new Object();
   private Surface surface = null;
 
-  private TextureRegistry.SurfaceProducer producer;
+  private VideoFrameTarget target;
 
-  public void surfaceCreated(final TextureRegistry.SurfaceProducer producer) {
+  public void surfaceCreated(final VideoFrameTarget target) {
     ThreadUtils.checkIsOnMainThread();
-    this.producer = producer;
-    this.producer.setCallback(
-            new TextureRegistry.SurfaceProducer.Callback() {
-              @Override
-              public void onSurfaceAvailable() {
-                // Do surface initialization here, and draw the current frame.
-              }
-
-              @Override
-              public void onSurfaceCleanup() {
-                surfaceDestroyed();
-              }
-            }
-    );
+    this.target = target;
+    this.target.setOnCleanup(this::surfaceDestroyed);
   }
 
   public void surfaceDestroyed() {
@@ -166,6 +154,9 @@ public class SurfaceTextureRenderer extends EglRenderer {
       final CountDownLatch completionLatch = new CountDownLatch(1);
       releaseEglSurface(completionLatch::countDown);
       ThreadUtils.awaitUninterruptibly(completionLatch);
+      if (surface != null) {
+        target.surfaceReleased(surface);
+      }
       surface = null;
     }
   }

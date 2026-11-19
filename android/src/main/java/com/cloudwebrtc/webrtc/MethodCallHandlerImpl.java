@@ -133,6 +133,7 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
   // JavaAudioDeviceModule has no mute getter, so mirror the last value set
   // via the "setMicrophoneMuted" method call.
   private boolean microphoneMuted = false;
+  private boolean latestFrame = false;
 
   private FlutterRTCFrameCryptor frameCryptor;
 
@@ -211,10 +212,11 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
   }
   private void initialize(boolean bypassVoiceProcessing, boolean androidUseHardwareAudioProcessing, int networkIgnoreMask, boolean forceSWCodec, List<String> forceSWCodecList,
   @Nullable ConstraintsMap androidAudioConfiguration, Severity logSeverity, @Nullable Integer audioSampleRate, @Nullable Integer audioOutputSampleRate,
-  @Nullable String fieldTrials, boolean lowLatencyDecoder) {
+  @Nullable String fieldTrials, boolean lowLatencyDecoder, boolean latestFrame) {
     if (mFactory != null) {
       return;
     }
+    this.latestFrame = latestFrame;
 
     InitializationOptions.Builder initOptions = InitializationOptions.builder(context)
             .setEnableInternalTracer(true)
@@ -473,7 +475,10 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
                 && constraintsMap.getType("androidLowLatencyDecoder") == ObjectType.Boolean
                 && constraintsMap.getBoolean("androidLowLatencyDecoder");
 
-        initialize(enableBypassVoiceProcessing, androidUseHardwareAudioProcessing, networkIgnoreMask, forceSWCodec, forceSWCodecList, androidAudioConfiguration, logSeverity, audioSampleRate, audioOutputSampleRate, fieldTrials, lowLatencyDecoder);
+        boolean latestFrame = constraintsMap.hasKey("androidLatestFrame")
+                && constraintsMap.getType("androidLatestFrame") == ObjectType.Boolean
+                && constraintsMap.getBoolean("androidLatestFrame");
+        initialize(enableBypassVoiceProcessing, androidUseHardwareAudioProcessing, networkIgnoreMask, forceSWCodec, forceSWCodecList, androidAudioConfiguration, logSeverity, audioSampleRate, audioOutputSampleRate, fieldTrials, lowLatencyDecoder, latestFrame);
         result.success(null);
         break;
       }
@@ -709,21 +714,24 @@ public class MethodCallHandlerImpl implements MethodCallHandler, StateProvider {
         break;
       }
       case "createVideoRenderer": {
-        TextureRegistry.SurfaceProducer producer = textures.createSurfaceProducer();
-        FlutterRTCVideoRenderer render = new FlutterRTCVideoRenderer(producer);
-        renders.put(producer.id(), render);
+        VideoFrameTarget target =
+                latestFrame && Build.VERSION.SDK_INT >= 29
+                        ? new LatestFrameTarget(textures.createImageTexture())
+                        : new ProducerFrameTarget(textures.createSurfaceProducer());
+        FlutterRTCVideoRenderer render = new FlutterRTCVideoRenderer(target);
+        renders.put(target.id(), render);
 
         EventChannel eventChannel =
                 new EventChannel(
                         messenger,
-                        "FlutterWebRTC/Texture" + producer.id());
+                        "FlutterWebRTC/Texture" + target.id());
 
         eventChannel.setStreamHandler(render);
         render.setEventChannel(eventChannel);
-        render.setId((int) producer.id());
+        render.setId((int) target.id());
 
         ConstraintsMap params = new ConstraintsMap();
-        params.putInt("textureId", (int) producer.id());
+        params.putInt("textureId", (int) target.id());
         result.success(params.toMap());
         break;
       }

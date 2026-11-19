@@ -16,12 +16,11 @@ import org.webrtc.RendererCommon.RendererEvents;
 import org.webrtc.VideoTrack;
 
 import io.flutter.plugin.common.EventChannel;
-import io.flutter.view.TextureRegistry;
 
 public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
 
     private static final String TAG = FlutterWebRTCPlugin.TAG;
-    private final TextureRegistry.SurfaceProducer producer;
+    private final VideoFrameTarget target;
     private int id = -1;
     private String mediaStreamId;
 
@@ -36,7 +35,7 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
             eventChannel.setStreamHandler(null);
 
         eventSink = null;
-        producer.release();
+        target.release();
     }
 
     /**
@@ -101,14 +100,14 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
     EventChannel eventChannel;
     EventChannel.EventSink eventSink;
 
-    public FlutterRTCVideoRenderer(TextureRegistry.SurfaceProducer producer) {
+    public FlutterRTCVideoRenderer(VideoFrameTarget target) {
         this.surfaceTextureRenderer = new SurfaceTextureRenderer("");
         listenRendererEvents();
         surfaceTextureRenderer.init(EglUtils.getRootEglBaseContext(), rendererEvents);
-        surfaceTextureRenderer.surfaceCreated(producer);
+        surfaceTextureRenderer.surfaceCreated(target);
 
         this.eventSink = null;
-        this.producer = producer;
+        this.target = target;
         this.ownerTag = null;
     }
 
@@ -260,7 +259,7 @@ public class FlutterRTCVideoRenderer implements EventChannel.StreamHandler {
             surfaceTextureRenderer.release();
             listenRendererEvents();
             surfaceTextureRenderer.init(sharedContext, rendererEvents);
-            surfaceTextureRenderer.surfaceCreated(producer);
+            surfaceTextureRenderer.surfaceCreated(target);
 
             videoTrack.addSink(surfaceTextureRenderer);
         }
